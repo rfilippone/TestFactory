@@ -3,7 +3,7 @@
 .DEFAULT_GOAL:= all
 
 config ?= debug
-CXX_FLAGS:=-Wall
+CXX_FLAGS:=-Wall -g
 
 INCLUDES:=-Isrc $(BOOST_INC)
 
