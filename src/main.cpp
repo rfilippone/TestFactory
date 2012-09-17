@@ -4,6 +4,67 @@
 
 using namespace std;
 
+namespace factory {
+
+namespace names {
+
+struct UNNAMED {};
+}
+
+}
+
+template <typename T, typename NAME, typename SCOPE> class CCF
+{
+public:
+    static T* get()
+    {
+        return new T();
+    }
+};
+
+
+template <typename T> class CF
+{
+   template <typename NAME> class Named {
+        template <typename SCOPE> class InScope {
+        public:
+            static T* get()
+            {
+                return CCF<T, NAME, SCOPE>::get();
+            }
+        };
+   public:
+        static T* get()
+        {
+            return CCF<T, NAME, factory::scopes::ROOT>::get();
+        }
+    };
+
+    template <typename SCOPE> class InScope {
+        template <typename NAME> class Named {
+        public:
+            static T* get()
+            {
+                return CCF<T, NAME, SCOPE>::get();
+            }
+        };
+    public:
+        static T* get()
+        {
+           return CCF<T, factory::names::UNNAMED, SCOPE>::get();
+        }
+     };
+
+public:
+    static T* get()
+    {
+        return CCF<T, factory::names::UNNAMED, factory::scopes::ROOT>::get();
+    }
+};
+
+
+SCOPE(MYSCOPE);
+SCOPE(MYSCOPE2);
 
 
 class DatabaseInterface
@@ -17,7 +78,7 @@ class RealDatabase : public DatabaseInterface
 {
 public:
     RealDatabase(std::string name) : m_name(name) { }
-    ~RealDatabase() {}
+    virtual ~RealDatabase() {}
 
     void accessDB() { std::cout << "Real DB: access ... this is slow " << m_name << std::endl; }
 
@@ -28,7 +89,7 @@ class ParamAlternativeDatabase : public DatabaseInterface
 {
 public:
     ParamAlternativeDatabase(std::string name) : m_name(name) { }
-    ~ParamAlternativeDatabase() {}
+    virtual ~ParamAlternativeDatabase() {}
 
     void accessDB() { std::cout << "ParamAlternative  DB access " << m_name << std::endl; }
 
@@ -41,7 +102,7 @@ class AlternativeDatabase : public DatabaseInterface
 {
 public:
     AlternativeDatabase() {}
-    ~AlternativeDatabase() {}
+    virtual ~AlternativeDatabase() {}
 
     void accessDB() { std::cout << "Alternative DB access" << std::endl; }
 };
@@ -50,7 +111,7 @@ class MockDatabase : public DatabaseInterface
 {
 public:
     MockDatabase(int n) : m_n(n) {}
-    ~MockDatabase() {}
+    virtual ~MockDatabase() {}
 
     void accessDB() { std::cout << "Mock DB access " << m_n << std::endl; }
 
@@ -59,7 +120,7 @@ public:
 
 DatabaseInterface* my_factory()
 {
-    return new MockDatabase(1);
+    return new MockDatabase(3);
 }
 
 
@@ -82,19 +143,8 @@ public:
 
     SUT() : m_db(Factory<DatabaseInterface>::get()),
         m_db1(Factory<DatabaseInterface>::get<RealDatabase>(param)),
-        m_db2(Factory<DatabaseInterface, LOCAL>::get<AlternativeDatabase>())
+        m_db2(Factory<DatabaseInterface, factory::scopes::MYSCOPE>::get<AlternativeDatabase>())
     {
-//        int* val = build<int>(1);
-//        std::cout << *val << std::endl;
-
-        long* val2 = Factory<long>::get();
-        long* val3 = Factory<long>::get<long, long>(1);
-
-        long* sval2 = build<long>();
-
-        delete val2;
-        delete val3;
-        delete sval2;
     }
 
     ~SUT()
@@ -122,38 +172,43 @@ const std::string SUT::param("PPS");
 int main()
 {
 
-    SUT realInstance;
-    realInstance.doSomething();
+    CF<DatabaseInterface>::Named<int>::InScope<factory::scopes::MYSCOPE>::get()->accessDB();
 
-    std::cout << "-----------------" << std::endl;
+    std::cout << factory::scopes::MYSCOPE::idx << factory::scopes::MYSCOPE::name << std::endl;
+    std::cout << factory::scopes::MYSCOPE2::idx << factory::scopes::MYSCOPE2::name << std::endl;
 
+//    SUT realInstance;
+//    realInstance.doSomething();
+//
+//    std::cout << "-----------------" << std::endl;
+//
 //    Factory<DatabaseInterface>::replace<AlternativeDatabase>();
 //    SUT alternativeInstance;
 //    alternativeInstance.doSomething();
-
+//
 //    std::cout << "-----------------" << std::endl;
-
-    Factory<DatabaseInterface>::replace<ParamAlternativeDatabase, std::string>();
-    SUT parameterInstance;
-    parameterInstance.doSomething();
-
+//
+//    Factory<DatabaseInterface>::replace<ParamAlternativeDatabase, std::string>();
+//    SUT parameterInstance;
+//    parameterInstance.doSomething();
+//
 //    std::cout << "-----------------" << std::endl;
-
+//
 //    Factory<DatabaseInterface>::replace(my_factory);
 //    SUT functionInstance;
 //    functionInstance.doSomething();
-
+//
 //    std::cout << "-----------------" << std::endl;
 
-//    MockDatabase* mock = new MockDatabase(1);
-//    Factory<DatabaseInterface>::inject(mock);
+    MockDatabase* mock = new MockDatabase(1);
+    Factory<DatabaseInterface>::inject(mock);
 
-//    MockDatabase* mock2 = new MockDatabase(2);
-//    Factory<DatabaseInterface, LOCAL>::inject(mock2);
+    MockDatabase* mock2 = new MockDatabase(2);
+    Factory<DatabaseInterface, factory::scopes::MYSCOPE>::inject(mock2);
 
-//    //set expectation on mock here
-//    SUT testInstance;
-//    testInstance.doSomething();
+    //set expectation on mock here
+    SUT testInstance;
+    testInstance.doSomething();
 
     return 0;
 }
