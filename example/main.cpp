@@ -1,6 +1,8 @@
 #include <iostream>
 #include <boost/shared_ptr.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/type_traits/is_base_of.hpp>
+#include <boost/mpl/if.hpp>
 
 #include "configurable_factory.h"
 #include "SUT.h"
@@ -8,62 +10,68 @@
 
 
 using namespace std;
+using namespace boost::mpl;
 
 namespace factory {
 
 namespace names {
-
-struct UNNAMED {};
-}
-
-}
-
-template <typename T, typename NAME, typename SCOPE> class CCF
+//marker
+struct is_a_name
 {
-public:
-    static boost::shared_ptr<T> get()
+private:
+    is_a_name();
+    ~is_a_name();
+    is_a_name( const is_a_name& );
+    const is_a_name& operator=( const is_a_name& );
+};
+struct UNNAMED : private is_a_name {
+    static std::string name()
     {
-        return boost::make_shared<T>();
+        return "UNNAMED";
     }
+private:
+    UNNAMED();
+    ~UNNAMED();
+    UNNAMED( const UNNAMED& );
+    const UNNAMED& operator=( const UNNAMED& );
 };
 
 
-template <typename T> class CF
+struct NEWNAME : private is_a_name {
+    static std::string name()
+    {
+        return "NEWNAME";
+    }
+private:
+    NEWNAME();
+    ~NEWNAME();
+    NEWNAME( const NEWNAME& );
+    const NEWNAME& operator=( const NEWNAME& );
+};
+
+}
+}
+
+template <typename T, typename SELECTOR1=void, typename SELECTOR2=void> class CF
 {
-   template <typename NAME> class Named {
-        template <typename SCOPE> class InScope {
-        public:
-            static boost::shared_ptr<T> get()
-            {
-                return CCF<T, NAME, SCOPE>::get();
-            }
-        };
-   public:
-        static boost::shared_ptr<T> get()
-        {
-            return CCF<T, NAME, factory::scopes::ROOT>::get();
-        }
-    };
+    typedef typename if_c<boost::is_base_of<factory::scopes::is_a_scope, SELECTOR1>::value,
+                          SELECTOR1,
+                          typename if_c<boost::is_base_of<factory::scopes::is_a_scope, SELECTOR2>::value,
+                                        SELECTOR2,
+                                        factory::scopes::ROOT>::type
+                         >::type scope;
 
-    template <typename SCOPE> class InScope {
-        template <typename NAME> class Named {
-        public:
-            static boost::shared_ptr<T> get()
-            {
-                return CCF<T, NAME, SCOPE>::get();
-            }
-        };
-    public:
-        static boost::shared_ptr<T> get()
-        {
-           return CCF<T, factory::names::UNNAMED, SCOPE>::get();
-        }
-     };
-
+    typedef typename if_c<boost::is_base_of<factory::names::is_a_name, SELECTOR1>::value,
+                          SELECTOR1,
+                          typename if_c<boost::is_base_of<factory::names::is_a_name, SELECTOR2>::value,
+                                        SELECTOR2,
+                                        factory::names::UNNAMED>::type
+                         >::type name;
 public:
     static boost::shared_ptr<T> get()
     {
-        return CCF<T, factory::names::UNNAMED, factory::scopes::ROOT>::get();
+        std::cout << "[CF]  {N:" << name::name() << ", S:" << scope::name() << "} " << typeid(T).name() << std::endl;
+        return boost::make_shared<T>();
     }
 };
 
@@ -101,27 +109,20 @@ template<typename T> inline T* build()
     return Factory<T>::get();
 }
 
-#define CREATE(T) CF<DatabaseInterface>::get()
-#define CREATE_S(T, S) CF<DatabaseInterface>::InScope<S>::get()
-#define CREATE_N(T, N) CF<DatabaseInterface>::Named<N>::get()
-#define CREATE_SN(T, S, N) CF<DatabaseInterface>::Named<N>::get()
-
 int main()
 {
-    boost::shared_ptr<DatabaseInterface> a = CREATE(DatabaseInterface);
-    a->accessDB();
+    CF<DatabaseInterface>::get();
 
-    boost::shared_ptr<DatabaseInterface> b = CREATE_S(DatabaseInterface, factory::scopes::MYSCOPE);
-    b->accessDB();
+    CF<DatabaseInterface, factory::scopes::MYSCOPE2>::get();
+    CF<DatabaseInterface, void, factory::scopes::MYSCOPE2>::get();
+    CF<DatabaseInterface, factory::scopes::MYSCOPE2, void >::get();
 
-    boost::shared_ptr<DatabaseInterface> c = CREATE_S(DatabaseInterface, int);
-    c->accessDB();
+    CF<DatabaseInterface, factory::names::NEWNAME>::get();
+    CF<DatabaseInterface, void, factory::names::NEWNAME>::get();
+    CF<DatabaseInterface, factory::names::NEWNAME, void >::get();
 
-    boost::shared_ptr<DatabaseInterface> d = CREATE_SN(DatabaseInterface, factory::scopes::MYSCOPE, int);
-    d->accessDB();
-
-    std::cout << factory::scopes::MYSCOPE::idx() << " - " << factory::scopes::MYSCOPE::name() << std::endl;
-    std::cout << factory::scopes::MYSCOPE2::idx() << " - " << factory::scopes::MYSCOPE2::name() << std::endl;
+    CF<DatabaseInterface, factory::scopes::MYSCOPE2, factory::names::NEWNAME>::get();
+    CF<DatabaseInterface, factory::names::NEWNAME, factory::scopes::MYSCOPE2>::get();
 
     SUT realInstance;
     realInstance.doSomething();
