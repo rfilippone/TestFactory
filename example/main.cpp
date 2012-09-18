@@ -2,6 +2,7 @@
 
 #include "configurable_factory.h"
 #include "SUT.h"
+#include "AlternativeDatabase.h"
 
 using namespace std;
 
@@ -86,9 +87,9 @@ public:
     int m_n;
 };
 
-DatabaseInterface* my_factory()
+boost::shared_ptr<DatabaseInterface> my_factory()
 {
-    return new MockDatabase(3);
+    return boost::make_shared<MockDatabase>(3);
 }
 
 
@@ -116,34 +117,36 @@ int main()
     DatabaseInterface* d = CREATE_SN(DatabaseInterface, factory::scopes::MYSCOPE, int);
     d->accessDB();
 
-    //CF<DatabaseInterface>::Named<int>::InScope<factory::scopes::MYSCOPE>::get()->accessDB();
-
-
     std::cout << factory::scopes::MYSCOPE::idx() << " - " << factory::scopes::MYSCOPE::name() << std::endl;
     std::cout << factory::scopes::MYSCOPE2::idx() << " - " << factory::scopes::MYSCOPE2::name() << std::endl;
 
-//    SUT realInstance;
-//    realInstance.doSomething();
-//
-//    std::cout << "-----------------" << std::endl;
-//
-//    Factory<DatabaseInterface>::replace<AlternativeDatabase>();
-//    SUT alternativeInstance;
-//    alternativeInstance.doSomething();
-//
-//    std::cout << "-----------------" << std::endl;
-//
-//    Factory<DatabaseInterface>::replace<ParamAlternativeDatabase, std::string>();
-//    SUT parameterInstance;
-//    parameterInstance.doSomething();
-//
-//    std::cout << "-----------------" << std::endl;
-//
-//    Factory<DatabaseInterface>::replace(my_factory);
-//    SUT functionInstance;
-//    functionInstance.doSomething();
-//
-//    std::cout << "-----------------" << std::endl;
+    SUT realInstance;
+    realInstance.doSomething();
+
+    std::cout << "-----------------" << std::endl;
+
+    Factory<DatabaseInterface>::replace<AlternativeDatabase>();
+    SUT alternativeInstance;
+    alternativeInstance.doSomething();
+    Factory<DatabaseInterface>::reset();
+
+
+    std::cout << "-----------------" << std::endl;
+
+    Factory<DatabaseInterface>::replace<ParamAlternativeDatabase, std::string>();
+    SUT parameterInstance;
+    parameterInstance.doSomething();
+    Factory<DatabaseInterface>::reset<std::string>();
+    Factory<DatabaseInterface>::reset();
+
+    std::cout << "-----------------" << std::endl;
+
+    Factory<DatabaseInterface>::replace(my_factory);
+    SUT functionInstance;
+    functionInstance.doSomething();
+    Factory<DatabaseInterface>::reset();
+
+    std::cout << "-----------------" << std::endl;
 
     MockDatabase* mock = new MockDatabase(1);
     Factory<DatabaseInterface>::inject(mock);
@@ -154,6 +157,7 @@ int main()
     //set expectation on mock here
     SUT testInstance;
     testInstance.doSomething();
+    Factory<DatabaseInterface>::reset();
 
     return 0;
 }

@@ -2,6 +2,8 @@
 #ifndef SUT_H_
 #define SUT_H_
 
+#include <boost/shared_ptr.hpp>
+
 #include "configurable_factory.h"
 #include "DatabaseInterface.h"
 
@@ -19,9 +21,9 @@ public:
 
     void doSomething();
 
-    DatabaseInterface* m_db;
-    DatabaseInterface* m_db1;
-    DatabaseInterface* m_db2;
+    boost::shared_ptr<DatabaseInterface> m_db;
+    boost::shared_ptr<DatabaseInterface> m_db1;
+    boost::shared_ptr<DatabaseInterface> m_db2;
 };
 
 

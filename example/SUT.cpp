@@ -13,9 +13,6 @@ SUT::SUT() :
 
 SUT::~SUT()
 {
-    delete m_db;
-    delete m_db1;
-    delete m_db2;
 }
 
 void SUT::doSomething()

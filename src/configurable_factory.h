@@ -4,6 +4,8 @@
 #include <iostream>
 #include <boost/type_traits.hpp>
 #include <boost/preprocessor.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 
 namespace factory
 {
@@ -41,17 +43,20 @@ public:\
 };\
 } }
 
-
-
-
 template<typename INTF, typename P1, typename Scope=factory::scopes::ROOT> class P1Factory
 {
 public:
-    static INTF* (*factory)(P1 p1);
+    static boost::shared_ptr<INTF> (*factory)(P1 p1);
     static bool replaced;
+
+    static void reset()
+    {
+        factory = NULL;
+        replaced = false;
+    }
 };
-template<typename INTF, typename P1, typename Scope> INTF*      (* P1Factory<INTF, P1, Scope>::factory)(P1) = NULL;
-template<typename INTF, typename P1, typename Scope> bool       P1Factory<INTF, P1, Scope>::replaced = false;
+template<typename INTF, typename P1, typename Scope> boost::shared_ptr<INTF> (* P1Factory<INTF, P1, Scope>::factory)(P1) = NULL;
+template<typename INTF, typename P1, typename Scope> bool                    P1Factory<INTF, P1, Scope>::replaced = false;
 
 
 template<typename INTF, typename P1, typename SUB, typename Scope=factory::scopes::ROOT> class P1FactoryReplacer
@@ -63,10 +68,10 @@ public:
         P1Factory<INTF, P1, Scope>::replaced = true;
     }
 
-    static INTF* create(P1 p1)
+    static boost::shared_ptr<INTF> create(P1 p1)
     {
-        std::cout << "[Factory] ....... " << typeid(INTF).name() << " {"<<  Scope::name << "} (" << typeid(P1).name()<<  ") -> replaced by " << typeid(SUB).name() << std::endl;
-        return new SUB(p1);
+        std::cout << "[Factory] ....... " << typeid(INTF).name() << " {"<<  Scope::name() << "} (" << typeid(P1).name()<<  ") -> replaced by " << typeid(SUB).name() << std::endl;
+        return boost::make_shared<SUB>(p1);
     }
 };
 
@@ -75,58 +80,58 @@ template<typename INTF, typename Scope=factory::scopes::ROOT> class Factory
 {
 public:
 
-    static INTF* get()
+    static boost::shared_ptr<INTF> get()
     {
         if (injected_instance != NULL)
         {
-            std::cout << "[Factory] replaced " << typeid(INTF).name() << " {"<<  Scope::name << "} with injected instance" << std::endl;
+            std::cout << "[Factory] replaced " << typeid(INTF).name() << " {"<<  Scope::name() << "} with injected instance" << std::endl;
             return injected_instance;
         }
 
         if (factory != NULL)
         {
-            std::cout << "[Factory] created " << typeid(INTF).name() << " {"<<  Scope::name << "} calling injected factory" << std::endl;
+            std::cout << "[Factory] created " << typeid(INTF).name() << " {"<<  Scope::name() << "} calling injected factory" << std::endl;
             return factory();
         }
 
-        std::cout << "[Factory] created " << typeid(INTF).name() << " {"<<  Scope::name << "}" << std::endl;
-        return new INTF();
+        std::cout << "[Factory] created " << typeid(INTF).name() << " {"<<  Scope::name() << "}" << std::endl;
+        return boost::make_shared<INTF>();
     }
 
-    template <typename IMPL> static INTF* get()
+    template <typename IMPL> static boost::shared_ptr<INTF> get()
     {
         if (injected_instance != NULL)
         {
-            std::cout << "[Factory] replaced " << typeid(INTF).name() << " {"<<  Scope::name << "} -> " << typeid(IMPL).name() << " with injected instance" << std::endl;
+            std::cout << "[Factory] replaced " << typeid(INTF).name() << " {"<<  Scope::name() << "} -> " << typeid(IMPL).name() << " with injected instance" << std::endl;
             return injected_instance;
         }
 
         if (factory != NULL)
         {
-            std::cout << "[Factory] created " << typeid(INTF).name() << " {"<<  Scope::name << "} -> " << typeid(IMPL).name() << " calling injected factory" << std::endl;
+            std::cout << "[Factory] created " << typeid(INTF).name() << " {"<<  Scope::name() << "} -> " << typeid(IMPL).name() << " calling injected factory" << std::endl;
             return factory();
         }
 
-        std::cout << "[Factory] created " << typeid(INTF).name() << " {"<<  Scope::name << "} -> " << typeid(IMPL).name() << std::endl;
-        return new IMPL();
+        std::cout << "[Factory] created " << typeid(INTF).name() << " {"<<  Scope::name() << "} -> " << typeid(IMPL).name() << std::endl;
+        return boost::make_shared<IMPL>();
     }
 
-    template <typename IMPL, typename P1> static INTF* get(P1 p1)
+    template <typename IMPL, typename P1> static boost::shared_ptr<INTF> get(P1 p1)
     {
         if (injected_instance != NULL)
         {
-            std::cout << "[Factory] replaced " << typeid(INTF).name() << " {"<<  Scope::name << "} -> " << typeid(IMPL).name() << "(" << typeid(P1).name()<<  ") with injected instance" << std::endl;
+            std::cout << "[Factory] replaced " << typeid(INTF).name() << " {"<<  Scope::name() << "} -> " << typeid(IMPL).name() << "(" << typeid(P1).name()<<  ") with injected instance" << std::endl;
             return injected_instance;
         }
 
         if (P1Factory<INTF,P1,Scope>::replaced)
         {
-            std::cout << "[Factory] created " << typeid(INTF).name() << " {"<<  Scope::name << "} -> " << typeid(IMPL).name() << "(" << typeid(P1).name()<<  ") calling injected factory" << std::endl;
+            std::cout << "[Factory] created " << typeid(INTF).name() << " {"<<  Scope::name() << "} -> " << typeid(IMPL).name() << "(" << typeid(P1).name()<<  ") calling injected factory" << std::endl;
             return P1Factory<INTF,P1,Scope>::factory(p1);
         }
 
-        std::cout << "[Factory] created " << typeid(INTF).name() << " {"<<  Scope::name << "} -> " << typeid(IMPL).name() << "(" << typeid(P1).name()<<  ")" << std::endl;
-        return new IMPL(p1);
+        std::cout << "[Factory] created " << typeid(INTF).name() << " {"<<  Scope::name() << "} -> " << typeid(IMPL).name() << "(" << typeid(P1).name()<<  ")" << std::endl;
+        return boost::make_shared<IMPL>(p1);
     }
 
     //------------------------------------------------------------------------
@@ -147,7 +152,7 @@ public:
     }
 
     //Replace the returned type with a user specified factory
-    static void replace(INTF* (*new_factory)())
+    static void replace(boost::shared_ptr<INTF> (*new_factory)())
     {
         Factory<INTF, Scope>::factory = new_factory;
     }
@@ -155,29 +160,33 @@ public:
     //Replace the returned type with a user specified instance
     template <typename INJ> static void inject(INJ* inj)
     {
-        Factory<INTF, Scope>::injected_instance = inj;
+        Factory<INTF, Scope>::injected_instance = boost::shared_ptr<INTF>(inj);
     }
-
 
     static void reset()
     {
         factory = NULL;
-        injected_instance = NULL;
+        injected_instance.reset();
+    }
+
+    template <typename P1> static void reset()
+    {
+        P1Factory<INTF, P1, Scope>::reset();
     }
 
 private:
-    template <typename SUB> static INTF* create()
+    template <typename SUB> static boost::shared_ptr<INTF> create()
     {
-        std::cout << "[Factory] ....... " << typeid(INTF).name() << " {"<<  Scope::name << "} -> replaced by " << typeid(SUB).name() << std::endl;
-        return new SUB();
+        std::cout << "[Factory] ....... " << typeid(INTF).name() << " {"<<  Scope::name() << "} -> replaced by " << typeid(SUB).name() << std::endl;
+        return boost::make_shared<SUB>();
     }
 
-    static INTF* (*factory)();
-    static INTF* injected_instance;
+    static boost::shared_ptr<INTF> (*factory)();
+    static boost::shared_ptr<INTF> injected_instance;
 };
 
-template<typename INTF,typename Scope> INTF* (* Factory<INTF,Scope>::factory)() = NULL;
-template<typename INTF,typename Scope> INTF* Factory<INTF,Scope>::injected_instance = NULL;
+template<typename INTF,typename Scope> boost::shared_ptr<INTF> (* Factory<INTF,Scope>::factory)() = NULL;
+template<typename INTF,typename Scope> boost::shared_ptr<INTF> Factory<INTF,Scope>::injected_instance;
 
 
 #endif // CONFIGURABLE_FACTORY_H
