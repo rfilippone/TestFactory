@@ -11,10 +11,18 @@ namespace factory
 {
 namespace scopes
 {
-
-class ROOT
+//marker
+struct is_a_scope
 {
-public:
+private:
+    is_a_scope();
+    ~is_a_scope();
+    is_a_scope( const is_a_scope& );
+    const is_a_scope& operator=( const is_a_scope& );
+};
+
+struct ROOT : private is_a_scope
+{
     static long next()
     {
         static long counter = 0;
@@ -41,8 +49,7 @@ private:
 
 #define SCOPE(NAME) \
 namespace factory { namespace scopes {\
-class NAME {\
-public:\
+struct NAME : private is_a_scope {\
     static std::string name() { return BOOST_STRINGIZE(NAME); }\
     static long const idx() { static long counter = ROOT::next(); return counter; }\
 private:\
