@@ -30,6 +30,11 @@ public:
     {
         return 0;
     }
+private:
+    ROOT();
+    ~ROOT();
+    ROOT( const ROOT& );
+    const ROOT& operator=( const ROOT& );
 };
 }
 }
@@ -40,6 +45,11 @@ class NAME {\
 public:\
     static std::string name() { return BOOST_STRINGIZE(NAME); }\
     static long const idx() { static long counter = ROOT::next(); return counter; }\
+private:\
+    NAME();\
+    ~NAME();\
+    NAME( const NAME& );\
+    const NAME& operator=( const NAME& );\
 };\
 } }
 
@@ -54,6 +64,11 @@ public:
         factory = NULL;
         replaced = false;
     }
+private:
+    P1Factory();
+    ~P1Factory();
+    P1Factory( const P1Factory& );
+    const P1Factory& operator=( const P1Factory& );
 };
 template<typename INTF, typename P1, typename Scope> boost::shared_ptr<INTF> (* P1Factory<INTF, P1, Scope>::factory)(P1) = NULL;
 template<typename INTF, typename P1, typename Scope> bool                    P1Factory<INTF, P1, Scope>::replaced = false;
@@ -73,6 +88,11 @@ public:
         std::cout << "[Factory] ....... " << typeid(INTF).name() << " {"<<  Scope::name() << "} (" << typeid(P1).name()<<  ") -> replaced by " << typeid(SUB).name() << std::endl;
         return boost::make_shared<SUB>(p1);
     }
+private:
+    P1FactoryReplacer();
+    ~P1FactoryReplacer();
+    P1FactoryReplacer( const P1FactoryReplacer& );
+    const P1FactoryReplacer& operator=( const P1FactoryReplacer& );
 };
 
 
@@ -174,7 +194,13 @@ public:
         P1Factory<INTF, P1, Scope>::reset();
     }
 
+
 private:
+    Factory();
+    ~Factory();
+    Factory( const Factory& );
+    const Factory& operator=( const Factory& );
+
     template <typename SUB> static boost::shared_ptr<INTF> create()
     {
         std::cout << "[Factory] ....... " << typeid(INTF).name() << " {"<<  Scope::name() << "} -> replaced by " << typeid(SUB).name() << std::endl;
