@@ -27,7 +27,7 @@ $(objs_dir):
 ###### executable
 
 exe_target = TestFactory
-exe_srcs_dir = src
+exe_srcs_dir = src example
 exe_srcs:=$(foreach dir,$(exe_srcs_dir), $(wildcard $(dir)/*.cpp))
 exe_artifact=$(build_dir)/$(config)/$(exe_target)
 exe_install_dest=web/public/$(exe_target)

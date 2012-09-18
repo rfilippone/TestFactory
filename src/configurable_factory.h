@@ -1,6 +1,7 @@
 #ifndef CONFIGURABLE_FACTORY_H
 #define CONFIGURABLE_FACTORY_H
 
+#include <iostream>
 #include <boost/type_traits.hpp>
 #include <boost/preprocessor.hpp>
 
@@ -18,10 +19,16 @@ public:
         return (++counter);
     }
 
-    const static std::string name;
-    const static long idx = 0;
+    static std::string name()
+    {
+        return "ROOT";
+    }
+
+    static long const idx()
+    {
+        return 0;
+    }
 };
-const std::string ROOT::name("ROOT");
 }
 }
 
@@ -29,11 +36,9 @@ const std::string ROOT::name("ROOT");
 namespace factory { namespace scopes {\
 class NAME {\
 public:\
-    const static std::string name;\
-    const static long idx;\
+    static std::string name() { return BOOST_STRINGIZE(NAME); }\
+    static long const idx() { static long counter = ROOT::next(); return counter; }\
 };\
-const std::string NAME::name(BOOST_STRINGIZE(NAME));\
-const long NAME::idx = ROOT::next();\
 } }
 
 

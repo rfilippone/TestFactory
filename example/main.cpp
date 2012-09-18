@@ -1,6 +1,7 @@
 #include <iostream>
 
-#include <configurable_factory.h>
+#include "configurable_factory.h"
+#include "SUT.h"
 
 using namespace std;
 
@@ -62,29 +63,6 @@ public:
     }
 };
 
-
-SCOPE(MYSCOPE);
-SCOPE(MYSCOPE2);
-
-
-class DatabaseInterface
-{
-public:
-    virtual ~DatabaseInterface() {}
-    virtual void accessDB() { std::cout << "Interface  access" << std::endl; }
-};
-
-class RealDatabase : public DatabaseInterface
-{
-public:
-    RealDatabase(std::string name) : m_name(name) { }
-    virtual ~RealDatabase() {}
-
-    void accessDB() { std::cout << "Real DB: access ... this is slow " << m_name << std::endl; }
-
-    std::string m_name;
-};
-
 class ParamAlternativeDatabase : public DatabaseInterface
 {
 public:
@@ -95,16 +73,6 @@ public:
 
     //virtual void abc() =0;
     std::string m_name;
-};
-
-
-class AlternativeDatabase : public DatabaseInterface
-{
-public:
-    AlternativeDatabase() {}
-    virtual ~AlternativeDatabase() {}
-
-    void accessDB() { std::cout << "Alternative DB access" << std::endl; }
 };
 
 class MockDatabase : public DatabaseInterface
@@ -129,53 +97,30 @@ template<typename T> inline T* build()
     return Factory<T>::get();
 }
 
-
-
-class SUT
-{
-public:
-//    SUT() : m_db(Factory<DatabaseInterface>::get<RealDatabase>("PPS")),
-//        m_db1(Factory<DatabaseInterface, LOCAL>::get<AlternativeDatabase>())
-//    {
-//    }
-
-    const static std::string param;
-
-    SUT() : m_db(Factory<DatabaseInterface>::get()),
-        m_db1(Factory<DatabaseInterface>::get<RealDatabase>(param)),
-        m_db2(Factory<DatabaseInterface, factory::scopes::MYSCOPE>::get<AlternativeDatabase>())
-    {
-    }
-
-    ~SUT()
-    {
-        delete m_db;
-        delete m_db1;
-        delete m_db2;
-    }
-
-    void doSomething()
-    {
-        m_db->accessDB();
-        m_db1->accessDB();
-        m_db2->accessDB();
-    }
-
-    DatabaseInterface* m_db;
-    DatabaseInterface* m_db1;
-    DatabaseInterface* m_db2;
-};
-
-const std::string SUT::param("PPS");
-
+#define CREATE(T) CF<DatabaseInterface>::get()
+#define CREATE_S(T, S) CF<DatabaseInterface>::InScope<S>::get()
+#define CREATE_N(T, N) CF<DatabaseInterface>::Named<N>::get()
+#define CREATE_SN(T, S, N) CF<DatabaseInterface>::Named<N>::get()
 
 int main()
 {
+    DatabaseInterface* a = CREATE(DatabaseInterface);
+    a->accessDB();
 
-    CF<DatabaseInterface>::Named<int>::InScope<factory::scopes::MYSCOPE>::get()->accessDB();
+    DatabaseInterface* b = CREATE_S(DatabaseInterface, factory::scopes::MYSCOPE);
+    b->accessDB();
 
-    std::cout << factory::scopes::MYSCOPE::idx << factory::scopes::MYSCOPE::name << std::endl;
-    std::cout << factory::scopes::MYSCOPE2::idx << factory::scopes::MYSCOPE2::name << std::endl;
+    DatabaseInterface* c = CREATE_S(DatabaseInterface, int);
+    c->accessDB();
+
+    DatabaseInterface* d = CREATE_SN(DatabaseInterface, factory::scopes::MYSCOPE, int);
+    d->accessDB();
+
+    //CF<DatabaseInterface>::Named<int>::InScope<factory::scopes::MYSCOPE>::get()->accessDB();
+
+
+    std::cout << factory::scopes::MYSCOPE::idx() << " - " << factory::scopes::MYSCOPE::name() << std::endl;
+    std::cout << factory::scopes::MYSCOPE2::idx() << " - " << factory::scopes::MYSCOPE2::name() << std::endl;
 
 //    SUT realInstance;
 //    realInstance.doSomething();
