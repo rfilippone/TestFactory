@@ -1,8 +1,11 @@
 #include <iostream>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 
 #include "configurable_factory.h"
 #include "SUT.h"
 #include "AlternativeDatabase.h"
+
 
 using namespace std;
 
@@ -18,9 +21,9 @@ struct UNNAMED {};
 template <typename T, typename NAME, typename SCOPE> class CCF
 {
 public:
-    static T* get()
+    static boost::shared_ptr<T> get()
     {
-        return new T();
+        return boost::make_shared<T>();
     }
 };
 
@@ -30,13 +33,13 @@ template <typename T> class CF
    template <typename NAME> class Named {
         template <typename SCOPE> class InScope {
         public:
-            static T* get()
+            static boost::shared_ptr<T> get()
             {
                 return CCF<T, NAME, SCOPE>::get();
             }
         };
    public:
-        static T* get()
+        static boost::shared_ptr<T> get()
         {
             return CCF<T, NAME, factory::scopes::ROOT>::get();
         }
@@ -45,20 +48,20 @@ template <typename T> class CF
     template <typename SCOPE> class InScope {
         template <typename NAME> class Named {
         public:
-            static T* get()
+            static boost::shared_ptr<T> get()
             {
                 return CCF<T, NAME, SCOPE>::get();
             }
         };
     public:
-        static T* get()
+        static boost::shared_ptr<T> get()
         {
            return CCF<T, factory::names::UNNAMED, SCOPE>::get();
         }
      };
 
 public:
-    static T* get()
+    static boost::shared_ptr<T> get()
     {
         return CCF<T, factory::names::UNNAMED, factory::scopes::ROOT>::get();
     }
@@ -105,16 +108,16 @@ template<typename T> inline T* build()
 
 int main()
 {
-    DatabaseInterface* a = CREATE(DatabaseInterface);
+    boost::shared_ptr<DatabaseInterface> a = CREATE(DatabaseInterface);
     a->accessDB();
 
-    DatabaseInterface* b = CREATE_S(DatabaseInterface, factory::scopes::MYSCOPE);
+    boost::shared_ptr<DatabaseInterface> b = CREATE_S(DatabaseInterface, factory::scopes::MYSCOPE);
     b->accessDB();
 
-    DatabaseInterface* c = CREATE_S(DatabaseInterface, int);
+    boost::shared_ptr<DatabaseInterface> c = CREATE_S(DatabaseInterface, int);
     c->accessDB();
 
-    DatabaseInterface* d = CREATE_SN(DatabaseInterface, factory::scopes::MYSCOPE, int);
+    boost::shared_ptr<DatabaseInterface> d = CREATE_SN(DatabaseInterface, factory::scopes::MYSCOPE, int);
     d->accessDB();
 
     std::cout << factory::scopes::MYSCOPE::idx() << " - " << factory::scopes::MYSCOPE::name() << std::endl;
