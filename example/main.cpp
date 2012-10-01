@@ -3,6 +3,8 @@
 #include <boost/make_shared.hpp>
 #include <boost/type_traits/is_base_of.hpp>
 #include <boost/mpl/if.hpp>
+#include <boost/bind.hpp>
+#include <boost/function.hpp>
 
 #include "configurable_factory.h"
 #include "SUT.h"
@@ -70,10 +72,135 @@ template <typename T, typename SELECTOR1=void, typename SELECTOR2=void> class CF
 public:
     static boost::shared_ptr<T> get()
     {
-        std::cout << "[CF]  {N:" << name::name() << ", S:" << scope::name() << "} " << typeid(T).name() << std::endl;
-        return boost::make_shared<T>();
+        boost::shared_ptr<T> res(boost::make_shared<T>());
+        std::cout << "[CF]  {N:" << name::name() << ", S:" << scope::name() << "} " << typeid(T).name() << " = "<< res.get() << std::endl;
+        return res;
     }
 };
+
+
+namespace factory {
+
+namespace annotation {
+//marker
+struct is_an_annotation
+{
+private:
+    is_an_annotation();
+    ~is_an_annotation();
+    is_an_annotation( const is_an_annotation& );
+    const is_an_annotation& operator=( const is_an_annotation& );
+};
+struct FREE : private is_an_annotation {
+    static std::string name()
+    {
+        return "FREE";
+    }
+private:
+    FREE();
+    ~FREE();
+    FREE( const FREE& );
+    const FREE& operator=( const FREE& );
+};
+
+
+struct NEWANNOTATION : private is_an_annotation {
+    static std::string name()
+    {
+        return "NEWANNOTATION";
+    }
+private:
+    NEWANNOTATION();
+    ~NEWANNOTATION();
+    NEWANNOTATION( const NEWANNOTATION& );
+    const NEWANNOTATION& operator=( const NEWANNOTATION& );
+};
+
+}
+}
+
+
+template <typename T, typename ANNOTATION, typename R> class FactoryInjectorProvider
+{
+public:
+    static boost::shared_ptr<T> get()
+    {
+        boost::shared_ptr<T> res(boost::make_shared<R>());
+        std::cout << "[Injector]  {A:" << ANNOTATION::name() << "} " << typeid(T).name() << " -> " << typeid(R).name() << " = " << res.get() << std::endl;
+        return res;
+    }
+};
+
+
+template <typename T, typename ANNOTATION, typename R> boost::shared_ptr<T> ValueInjectorProvider(R value)
+{
+    boost::shared_ptr<T> res(boost::make_shared<R>(value));
+    std::cout << "[Injector]  {A:" << ANNOTATION::name() << "} " << typeid(T).name() << " = " << value << std::endl;
+    return res;
+}
+
+template <typename T, typename ANNOTATION=factory::annotation::FREE> class Injector;
+
+template <typename T> class bind
+{
+public:
+    template <typename R> static void to()
+    {
+        //Injector<T>::provider = FactoryInjectorProvider<T, factory::annotation::FREE, R>::get;
+        Injector<T>::bprovider = boost::bind(FactoryInjectorProvider<T, factory::annotation::FREE, R>::get);
+    }
+
+    template <typename R> static void to(R value)
+    {
+        Injector<T>::bprovider = boost::bind(ValueInjectorProvider<T,factory::annotation::FREE, R>, value);
+    }
+
+    template <typename A> class annotatedWith
+    {
+    public:
+        template <typename R> static void to()
+        {
+            annotatedWith_to<A, R>();
+        }
+
+        template <typename R> static void to(R value)
+        {
+            annotatedWith_to<A, R>(value);
+        }
+    };
+
+private:
+    template <typename A, typename R> static void annotatedWith_to()
+    {
+        //Injector<T, A>::provider = FactoryInjectorProvider<T, A, R>::get;
+        Injector<T, A>::bprovider = boost::bind(FactoryInjectorProvider<T, A, R>::get);
+    }
+
+    template <typename A, typename R> static void annotatedWith_to(R value)
+    {
+        Injector<T, A>::bprovider = boost::bind(ValueInjectorProvider<T, A, R>, value);
+    }
+};
+
+template <typename T, typename ANNOTATION> class Injector
+{
+
+public:
+    static boost::shared_ptr<T> get()
+    {
+        //return provider();
+        return bprovider();
+    }
+
+private:
+//    static boost::shared_ptr<T> (*provider)();
+    static boost::function<boost::shared_ptr<T>()> bprovider;
+
+    friend class bind<T>;
+};
+//template<typename T, typename ANNOTATION> boost::shared_ptr<T> (* Injector<T, ANNOTATION>::provider)() = FactoryInjectorProvider<T, ANNOTATION, T>::get;
+template<typename T, typename ANNOTATION> boost::function<boost::shared_ptr<T>()> Injector<T, ANNOTATION>::bprovider = boost::bind(FactoryInjectorProvider<T, ANNOTATION, T>::get);
+
 
 class ParamAlternativeDatabase : public DatabaseInterface
 {
@@ -109,20 +236,10 @@ template<typename T> inline T* build()
     return Factory<T>::get();
 }
 
+
 int main()
 {
-    CF<DatabaseInterface>::get();
-
-    CF<DatabaseInterface, factory::scopes::MYSCOPE2>::get();
-    CF<DatabaseInterface, void, factory::scopes::MYSCOPE2>::get();
-    CF<DatabaseInterface, factory::scopes::MYSCOPE2, void >::get();
-
-    CF<DatabaseInterface, factory::names::NEWNAME>::get();
-    CF<DatabaseInterface, void, factory::names::NEWNAME>::get();
-    CF<DatabaseInterface, factory::names::NEWNAME, void >::get();
-
-    CF<DatabaseInterface, factory::scopes::MYSCOPE2, factory::names::NEWNAME>::get();
-    CF<DatabaseInterface, factory::names::NEWNAME, factory::scopes::MYSCOPE2>::get();
+    std::cout << "################# 1st approach" << std::endl;
 
     SUT realInstance;
     realInstance.doSomething();
@@ -162,6 +279,42 @@ int main()
     SUT testInstance;
     testInstance.doSomething();
     Factory<DatabaseInterface>::reset();
+
+    std::cout << "################# 2nd approach" << std::endl;
+
+    boost::shared_ptr<DatabaseInterface> p1,p2,p3,p4,p5,p6,p7,p8,p9;
+
+    p1 = CF<DatabaseInterface>::get();
+
+    p2 = CF<DatabaseInterface, factory::scopes::MYSCOPE2>::get();
+    p3 = CF<DatabaseInterface, void, factory::scopes::MYSCOPE2>::get();
+    p4 = CF<DatabaseInterface, factory::scopes::MYSCOPE2, void >::get();
+
+    p5 = CF<DatabaseInterface, factory::names::NEWNAME>::get();
+    p6 = CF<DatabaseInterface, void, factory::names::NEWNAME>::get();
+    p7 = CF<DatabaseInterface, factory::names::NEWNAME, void >::get();
+
+    p8 = CF<DatabaseInterface, factory::scopes::MYSCOPE2, factory::names::NEWNAME>::get();
+    p9 = CF<DatabaseInterface, factory::names::NEWNAME, factory::scopes::MYSCOPE2>::get();
+
+    std::cout << "################# 3rd approach" << std::endl;
+
+    boost::shared_ptr<DatabaseInterface> i1,i2,i3,i4,i5,i6,i7,i8,i9;
+
+    bind<DatabaseInterface>::annotatedWith<factory::annotation::NEWANNOTATION>::to<AlternativeDatabase>();
+    bind<DatabaseInterface>::to<AlternativeDatabase>();
+    bind<int>::to(145);
+    bind<int>::annotatedWith<factory::annotation::NEWANNOTATION>::to(157);
+
+    i2 = Injector<DatabaseInterface, factory::annotation::NEWANNOTATION>::get();
+    i1 = Injector<DatabaseInterface>::get();
+
+
+    boost::shared_ptr<int> n1 = Injector<int>::get();
+    std::cout << "n1 = " << *n1 << std::endl;
+
+    boost::shared_ptr<int> n2 = Injector<int, factory::annotation::NEWANNOTATION>::get();
+    std::cout << "n2 = " << *n2 << std::endl;
 
     return 0;
 }
