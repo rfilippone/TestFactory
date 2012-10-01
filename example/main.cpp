@@ -119,25 +119,32 @@ private:
 }
 }
 
-
-template <typename T, typename ANNOTATION, typename R> class FactoryInjectorProvider
+struct ScopeType
 {
-public:
-    static boost::shared_ptr<T> get()
-    {
-        boost::shared_ptr<T> res(boost::make_shared<R>());
-        std::cout << "[Injector]  {A:" << ANNOTATION::name() << "} " << typeid(T).name() << " -> " << typeid(R).name() << " = " << res.get() << std::endl;
-        return res;
-    }
+	typedef ScopeType type;
+	template <typename T, typename ANNOTATION, typename R> static boost::shared_ptr<T> get();
+	template <typename T, typename ANNOTATION, typename R> static boost::shared_ptr<T> get(R value);
 };
 
 
-template <typename T, typename ANNOTATION, typename R> boost::shared_ptr<T> ValueInjectorProvider(R value)
+struct NoScope : public ScopeType
 {
-    boost::shared_ptr<T> res(boost::make_shared<R>(value));
-    std::cout << "[Injector]  {A:" << ANNOTATION::name() << "} " << typeid(T).name() << " = " << value << std::endl;
-    return res;
-}
+	typedef NoScope type;
+	template <typename T, typename ANNOTATION, typename R> static boost::shared_ptr<T> get()
+	{
+		boost::shared_ptr<T> res(boost::make_shared<R>());
+		std::cout << "[Injector] {" << typeid(type).name() << "} \"" << ANNOTATION::name() << "\" " << typeid(T).name() << " -> " << typeid(R).name() << " = " << res.get() << std::endl;
+		return res;
+	}
+
+	template <typename T, typename ANNOTATION, typename R> static boost::shared_ptr<T> get(R value)
+	{
+	    boost::shared_ptr<T> res(boost::make_shared<R>(value));
+	    std::cout << "[Injector] {" << typeid(type).name() << "} \"" << ANNOTATION::name() << "\" " << typeid(T).name() << " = " << value << std::endl;
+	    return res;
+	}
+};
+
 
 template <typename T, typename ANNOTATION=factory::annotation::FREE> class Injector;
 
@@ -146,13 +153,12 @@ template <typename T> class bind
 public:
     template <typename R> static void to()
     {
-        //Injector<T>::provider = FactoryInjectorProvider<T, factory::annotation::FREE, R>::get;
-        Injector<T>::bprovider = boost::bind(FactoryInjectorProvider<T, factory::annotation::FREE, R>::get);
+        Injector<T>::bprovider = boost::bind(NoScope::get<T, factory::annotation::FREE, R>);
     }
 
     template <typename R> static void to(R value)
     {
-        Injector<T>::bprovider = boost::bind(ValueInjectorProvider<T,factory::annotation::FREE, R>, value);
+        Injector<T>::bprovider = boost::bind(NoScope::get<T, factory::annotation::FREE, R>, value);
     }
 
     template <typename A> class annotatedWith
@@ -169,16 +175,23 @@ public:
         }
     };
 
+
+    template <typename A> class in
+    {
+    public:
+
+
+    };
+
 private:
     template <typename A, typename R> static void annotatedWith_to()
     {
-        //Injector<T, A>::provider = FactoryInjectorProvider<T, A, R>::get;
-        Injector<T, A>::bprovider = boost::bind(FactoryInjectorProvider<T, A, R>::get);
+        Injector<T, A>::bprovider = boost::bind(NoScope::get<T, A, R>);
     }
 
     template <typename A, typename R> static void annotatedWith_to(R value)
     {
-        Injector<T, A>::bprovider = boost::bind(ValueInjectorProvider<T, A, R>, value);
+        Injector<T, A>::bprovider = boost::bind(NoScope::get<T, A, R>, value);
     }
 };
 
@@ -188,18 +201,21 @@ template <typename T, typename ANNOTATION> class Injector
 public:
     static boost::shared_ptr<T> get()
     {
-        //return provider();
         return bprovider();
     }
 
 private:
-//    static boost::shared_ptr<T> (*provider)();
     static boost::function<boost::shared_ptr<T>()> bprovider;
+//    static std::map<ScopeType, int >& getScopeMap()
+//    {
+//        static std::map<ScopeType, int > scopeMap;
+//        return scopeMap;
+//    }
 
     friend class bind<T>;
 };
-//template<typename T, typename ANNOTATION> boost::shared_ptr<T> (* Injector<T, ANNOTATION>::provider)() = FactoryInjectorProvider<T, ANNOTATION, T>::get;
-template<typename T, typename ANNOTATION> boost::function<boost::shared_ptr<T>()> Injector<T, ANNOTATION>::bprovider = boost::bind(FactoryInjectorProvider<T, ANNOTATION, T>::get);
+template<typename T, typename ANNOTATION> boost::function<boost::shared_ptr<T>()> Injector<T, ANNOTATION>::bprovider = boost::bind(NoScope::get<T, ANNOTATION, T>);
+
 
 
 class ParamAlternativeDatabase : public DatabaseInterface
