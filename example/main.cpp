@@ -164,8 +164,8 @@ private:
     static LoggerScope* m_instance;
     LoggerScope() {}
     ~LoggerScope() {};
-    LoggerScope( const NOSCOPE& );
-    const LoggerScope& operator=( const NOSCOPE& );
+    LoggerScope( const LoggerScope& );
+    const LoggerScope& operator=( const LoggerScope& );
 
     template<typename TYPE> static boost::shared_ptr<TYPE> scopedProvider(boost::function<boost::shared_ptr<TYPE>()> unscopedProvider)
     {
@@ -333,11 +333,12 @@ public:
         return unscopedProvider();
     }
 
-    static std::map<long, boost::function<boost::shared_ptr<TYPE>()> > providerMap;
 private:
+    static std::map<long, boost::function<boost::shared_ptr<TYPE>()> > providerMap;
     static boost::function<boost::shared_ptr<TYPE>()> unscopedProvider;
 
     friend class bind<TYPE>;
+    template <class , class , class> friend class ScopedBindingStore;    
 };
 template<typename TYPE, typename ANNOTATION> boost::function<boost::shared_ptr<TYPE>()> Injector<TYPE, ANNOTATION>::unscopedProvider = boost::bind(builder<TYPE, ANNOTATION, TYPE>);
 template<typename TYPE, typename ANNOTATION> std::map<long, boost::function<boost::shared_ptr<TYPE>()> > Injector<TYPE, ANNOTATION>::providerMap;
